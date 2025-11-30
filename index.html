@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Task Manager — Home</title>
+  <link rel="stylesheet" href="script.css" />
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="profile">
+        <div class="avatar">SU</div>
+        <div class="profile-info">
+          <div class="name">Sundar Gurung</div>
+          <div class="email">sundargurung360@gmail.com</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-item active">Dashboard</button>
+        <button class="nav-item">Vital Task</button>
+        <button class="nav-item">My Task</button>
+        <button class="nav-item">Task Categories</button>
+        <button class="nav-item">Settings</button>
+        <button class="nav-item">Help</button>
+      </nav>
+
+      <div class="logout">Logout</div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-color">Dash</span>board
+        </div>
+
+        <div class="search-area">
+          <input id="search" placeholder="Search your task here..." />
+          <button id="createTaskBtn" title="Add task">＋</button>
+        </div>
+
+        <div class="top-right">
+          <div class="date">Tuesday <span>20/06/2023</span></div>
+        </div>
+      </header>
+
+      <section class="welcome">
+        <h1>Welcome back, Sundar <span class="wave">👋</span></h1>
+        <div class="members">
+          <!-- small avatars -->
+          <div class="member">A</div>
+          <div class="member">B</div>
+          <div class="member">C</div>
+        </div>
+      </section>
+
+      <section class="content-grid">
+        <div class="left-column">
+          <div class="card to-do">
+            <div class="card-header">
+              <h3>To-Do</h3>
+              <button id="addTaskSmall">+ Add task</button>
+            </div>
+            <div id="taskList" class="task-list">
+              <!-- tasks appended here by JS -->
+            </div>
+          </div>
+        </div>
+
+        <aside class="right-column">
+          <div class="card status-card">
+            <h3>Task Status</h3>
+            <div class="status-row">
+              <div class="donut-block">
+                <div class="donut" data-pct="84" data-color="#0dbb7b"></div>
+                <div class="donut-label"><strong id="pctCompleted">84%</strong><small>Completed</small></div>
+              </div>
+              <div class="donut-block">
+                <div class="donut" data-pct="46" data-color="#1e90ff"></div>
+                <div class="donut-label"><strong id="pctInProgress">46%</strong><small>In Progress</small></div>
+              </div>
+              <div class="donut-block">
+                <div class="donut" data-pct="13" data-color="#ff6b6b"></div>
+                <div class="donut-label"><strong id="pctNotStarted">13%</strong><small>Not Started</small></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card completed-card">
+            <h3>Completed Task</h3>
+            <div id="completedList" class="completed-list">
+              <!-- completed tasks appended here by JS -->
+            </div>
+          </div>
+        </aside>
+      </section>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
