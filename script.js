@@ -138,13 +138,13 @@ function renderTasks(tasks){
       // Section 2: In Progress - sorted by longest-working-duration (oldest started first)
       if (task.status === 'In Progress' && task.started && !task.deadline) {
         inProgressCount++;
-        inprogressListEl.appendChild(createTaskCard(task));
+        inprogressListEl.appendChild(createTaskCard(task, false));
       }
       
       // Section 3: Tasks with deadline today
       if (task.deadline === today) {
         deadlineCount++;
-        deadlineListEl.appendChild(createTaskCard(task));
+        deadlineListEl.appendChild(createTaskCard(task, false));
       }
     }
   });
