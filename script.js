@@ -118,29 +118,26 @@ function renderTasks(tasks){
   }
 
   // Process all tasks
+  const completedTasks = [];
   tasks.forEach(task => {
     if (task.status === 'Completed') {
-      // Add to completed section
       completedCount++;
-      const citem = document.createElement('div');
-      citem.className = 'completed-item';
-      citem.innerHTML = `<div class="info"><h5>${task.title}</h5><p>${task.description}</p></div><div class="when">Completed</div>`;
-      completedListEl.appendChild(citem);
+      completedTasks.push(task);
     } else {
       // Filter into three active sections
-      
+
       // Section 1: Tasks created today, not yet started
       if (task.created === today && task.status === 'Not Started') {
         tasksCount++;
-          tasksListEl.appendChild(createTaskCard(task, false));
+        tasksListEl.appendChild(createTaskCard(task, false));
       }
-      
+
       // Section 2: In Progress - sorted by longest-working-duration (oldest started first)
       if (task.status === 'In Progress' && task.started && !task.deadline) {
         inProgressCount++;
         inprogressListEl.appendChild(createTaskCard(task, false));
       }
-      
+
       // Section 3: Tasks with deadline today
       if (task.deadline === today) {
         deadlineCount++;
@@ -148,6 +145,23 @@ function renderTasks(tasks){
       }
     }
   });
+
+  // Render only the most recently completed task (by completedAt, then started, then created)
+  if (completedTasks.length > 0) {
+    function getTaskTime(t) {
+      // prefer explicit completedAt, then started, then created
+      const ts = t.completedAt || t.started || t.created || '';
+      const d = new Date(ts);
+      return isNaN(d.getTime()) ? 0 : d.getTime();
+    }
+    completedTasks.sort((a,b) => getTaskTime(b) - getTaskTime(a));
+    const latest = completedTasks[0];
+    const citem = document.createElement('div');
+    citem.className = 'completed-item';
+    // show only title and a small 'Completed' badge
+    citem.innerHTML = `<div class="info"><h5>${latest.title}</h5></div><div class="when">Completed</div>`;
+    completedListEl.appendChild(citem);
+  }
 
   // Sort in-progress section by longest working duration (oldest started first)
   const inprogressCards = Array.from(inprogressListEl.querySelectorAll('.task'));
