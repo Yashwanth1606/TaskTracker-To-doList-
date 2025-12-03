@@ -187,6 +187,68 @@ body{
 
 /* Task list */
 .task-list{display:flex;flex-direction:column;gap:12px;overflow:auto}
+
+/* Three-section To-Do layout */
+.to-do-sections {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+}
+
+.tasks-section,
+.inprogress-section,
+.deadline-section {
+  flex: 1 1 33.333%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: none;
+  border-radius: 8px;
+  padding: 12px;
+  padding: 10px;
+  overflow: hidden;
+}
+
+.tasks-section {
+  background: #dbeafe;
+}
+
+.inprogress-section {
+  background: #dcfce7;
+}
+
+.deadline-section {
+  background: #fee2e2;
+}
+
+.tasks-section h4,
+.inprogress-section h4,
+.deadline-section h4 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tasks-list,
+.inprogress-list,
+.deadline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Hide task description in Tasks section */
+.tasks-section .task p {
+  display: none;
+}
+
 .task{
   display:flex;gap:12px;padding:12px;border-radius:10px;border:1px solid #eef2f6;background:#fff;
   align-items:flex-start;
@@ -258,7 +320,7 @@ body{
 /* Make content panels share vertical space on larger screens */
 @media (min-width:981px){
   .left-column .card.to-do{flex:1;display:flex;flex-direction:column;min-height:320px}
-  .left-column .card.to-do .task-list{flex:1;overflow:auto}
+  .left-column .card.to-do .to-do-sections{flex:1;overflow:auto}
   .right-column .status-card{flex:1;display:flex;flex-direction:column}
   .right-column .status-card .status-row{flex:1;align-items:center}
   .right-column .completed-card{flex:0.6}

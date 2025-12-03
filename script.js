@@ -1,25 +1,93 @@
 // script.js - renders tasks and status donuts and includes examples for Google Sheets fetching
 
-// start with an empty list — the UI will show only the To-Do header and Add task button
-const sampleTasks = [];
+// Helper function to get today's date as YYYY-MM-DD string
+function getTodayDateString() {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
 
-const taskListEl = document.getElementById('taskList');
+// Task model now includes: id, title, description, priority, status, created, started, deadline
+const sampleTasks = [
+  {
+    id: 1,
+    title: 'Design homepage wireframe',
+    description: 'Create initial wireframe for homepage layout',
+    priority: 'High',
+    status: 'Not Started',
+    created: getTodayDateString(),
+    started: null,
+    deadline: null
+  },
+  {
+    id: 2,
+    title: 'Review PR feedback',
+    description: 'Go through the PR comments and make adjustments',
+    priority: 'High',
+    status: 'In Progress',
+    created: getTodayDateString(),
+    started: getTodayDateString() + 'T09:30',
+    deadline: getTodayDateString()
+  },
+  {
+    id: 3,
+    title: 'Update documentation',
+    description: 'Add new API endpoints to the docs',
+    priority: 'Medium',
+    status: 'Not Started',
+    created: getTodayDateString(),
+    started: null,
+    deadline: getTodayDateString()
+  },
+  {
+    id: 4,
+    title: 'Fix responsive bug',
+    description: 'Mobile layout breaks on tablet screens',
+    priority: 'High',
+    status: 'In Progress',
+    created: '2025-01-13',
+    started: '2025-01-15T11:00',
+    deadline: null
+  },
+  {
+    id: 5,
+    title: 'Write unit tests',
+    description: 'Add test coverage for auth module',
+    priority: 'Medium',
+    status: 'Completed',
+    created: '2025-01-10',
+    started: '2025-01-12T10:00',
+    deadline: '2025-01-15'
+  }
+];
+
+const tasksListEl = document.querySelector('.tasks-list');
+const inprogressListEl = document.querySelector('.inprogress-list');
+const deadlineListEl = document.querySelector('.deadline-list');
 const completedListEl = document.getElementById('completedList');
 const pctCompletedEl = document.getElementById('pctCompleted');
 const pctInProgressEl = document.getElementById('pctInProgress');
 const pctNotStartedEl = document.getElementById('pctNotStarted');
 
 function renderTasks(tasks){
-  taskListEl.innerHTML = '';
+  // Clear all sections
+  tasksListEl.innerHTML = '';
+  inprogressListEl.innerHTML = '';
+  deadlineListEl.innerHTML = '';
   completedListEl.innerHTML = '';
-  const totals = {completed:0, inProgress:0, notStarted:0};
 
-  tasks.forEach(task=>{
-    // main task card
+  const today = getTodayDateString();
+  let tasksCount = 0, inProgressCount = 0, deadlineCount = 0, completedCount = 0;
+
+  // Helper function to create a task card element
+    function createTaskCard(task, showDescription = true) {
     const t = document.createElement('div');
     t.className = 'task';
     const marker = document.createElement('div');
     marker.className = 'left-marker';
+    
     if (task.status === 'Completed') marker.style.background = '#0dbb7b';
     else if (task.status === 'In Progress') marker.style.background = '#1e90ff';
     else marker.style.background = '#ff6b6b';
@@ -28,55 +96,100 @@ function renderTasks(tasks){
     content.className = 'content';
     const title = document.createElement('h4');
     title.textContent = task.title;
+      if (!showDescription) {
+        content.appendChild(title);
+        t.appendChild(marker);
+        t.appendChild(content);
+        return t;
+      }
     const desc = document.createElement('p');
     desc.textContent = task.description;
     const meta = document.createElement('div');
     meta.className = 'meta';
-    meta.innerHTML = `<span>Priority: ${task.priority}</span><span>Status: ${task.status}</span><span>Created: ${task.created}</span>`;
-
+    meta.innerHTML = `<span>Priority: ${task.priority}</span><span>Status: ${task.status}</span>`;
+    
     content.appendChild(title);
     content.appendChild(desc);
     content.appendChild(meta);
-
+    
     t.appendChild(marker);
     t.appendChild(content);
+    return t;
+  }
 
-    if(task.status === 'Completed'){
-      // add to completed area
-      totals.completed++;
+  // Process all tasks
+  tasks.forEach(task => {
+    if (task.status === 'Completed') {
+      // Add to completed section
+      completedCount++;
       const citem = document.createElement('div');
       citem.className = 'completed-item';
       citem.innerHTML = `<div class="info"><h5>${task.title}</h5><p>${task.description}</p></div><div class="when">Completed</div>`;
       completedListEl.appendChild(citem);
     } else {
-      taskListEl.appendChild(t);
-      if(task.status === 'In Progress') totals.inProgress++;
-      else totals.notStarted++;
+      // Filter into three active sections
+      
+      // Section 1: Tasks created today, not yet started
+      if (task.created === today && task.status === 'Not Started') {
+        tasksCount++;
+          tasksListEl.appendChild(createTaskCard(task, false));
+      }
+      
+      // Section 2: In Progress - sorted by longest-working-duration (oldest started first)
+      if (task.status === 'In Progress' && task.started && !task.deadline) {
+        inProgressCount++;
+        inprogressListEl.appendChild(createTaskCard(task));
+      }
+      
+      // Section 3: Tasks with deadline today
+      if (task.deadline === today) {
+        deadlineCount++;
+        deadlineListEl.appendChild(createTaskCard(task));
+      }
     }
   });
 
-  // totals for percentage calculations
+  // Sort in-progress section by longest working duration (oldest started first)
+  const inprogressCards = Array.from(inprogressListEl.querySelectorAll('.task'));
+  if (inprogressCards.length > 1) {
+    inprogressCards.sort((a, b) => {
+      // Find corresponding tasks to get started times
+      const aTask = tasks.find(t => t.title === a.querySelector('h4').textContent);
+      const bTask = tasks.find(t => t.title === b.querySelector('h4').textContent);
+      if (aTask && bTask && aTask.started && bTask.started) {
+        return new Date(aTask.started) - new Date(bTask.started);
+      }
+      return 0;
+    });
+    inprogressListEl.innerHTML = '';
+    inprogressCards.forEach(card => inprogressListEl.appendChild(card));
+  }
+
+  // Update status percentages
   const totalCount = tasks.length || 1;
-  const pctCompleted = Math.round((totals.completed/totalCount)*100);
-  const pctInProgress = Math.round((totals.inProgress/totalCount)*100);
-  const pctNotStarted = Math.round((totals.notStarted/totalCount)*100);
+  const completedTotal = tasks.filter(t => t.status === 'Completed').length;
+  const inProgressTotal = tasks.filter(t => t.status === 'In Progress').length;
+  const notStartedTotal = tasks.filter(t => t.status === 'Not Started').length;
+
+  const pctCompleted = Math.round((completedTotal / totalCount) * 100);
+  const pctInProgress = Math.round((inProgressTotal / totalCount) * 100);
+  const pctNotStarted = Math.round((notStartedTotal / totalCount) * 100);
 
   pctCompletedEl.textContent = `${pctCompleted}%`;
   pctInProgressEl.textContent = `${pctInProgress}%`;
   pctNotStartedEl.textContent = `${pctNotStarted}%`;
 
-  // update donut visuals
-  document.querySelectorAll('.donut').forEach((d,i)=>{
+  // Update donut visuals
+  document.querySelectorAll('.donut').forEach((d, i) => {
     let pct = 0;
-    if(i===0) pct = pctCompleted;
-    if(i===1) pct = pctInProgress;
-    if(i===2) pct = pctNotStarted;
+    if (i === 0) pct = pctCompleted;
+    if (i === 1) pct = pctInProgress;
+    if (i === 2) pct = pctNotStarted;
     d.style.setProperty('--pct', pct);
     const color = d.dataset.color || '#0dbb7b';
     d.style.setProperty('--c', color);
     d.style.background = `conic-gradient(${color} ${pct}%, #e6eef6 ${pct}%)`;
   });
-
 }
 
 // initial render: no tasks by default so the To-Do card is empty and only shows header/button
