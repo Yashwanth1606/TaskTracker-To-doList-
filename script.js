@@ -62,6 +62,45 @@ const sampleTasks = [
     deadline: '2025-01-15'
   }
 ];
+// NEW: Load real tasks from our Node/Google Sheets backend
+async function loadTasksFromServer() {
+  try {
+    const res = await fetch('http://localhost:3000/tasks');
+    const data = await res.json();
+
+    // Backend returns: { ok: true, tasks: [ { date, time, title, description, priority, dueDate, status } ] }
+    const tasks = (data.tasks || []).map((t, idx) => ({
+      id: idx + 1,
+      title: t.title,
+      description: t.description || '',
+      priority: t.priority || 'Low',
+      status: t.status || 'Not Started',
+
+      // use sheet "Date" column as created date
+      created: t.date || getTodayDateString(),
+
+      // we’re not tracking these yet in the sheet – keep null for now
+      started: null,
+
+      // use sheet "Due Date" column as deadline
+      deadline: t.dueDate || null,
+
+      // we don't have a completedAt timestamp in the sheet, so leave null.
+      // renderTasks() will then treat the most recently *created* completed task
+      // as the "latest completed" one for the Completed Task card.
+      completedAt: null
+    }));
+
+    renderTasks(tasks);
+  } catch (err) {
+    console.error('Failed to load tasks from server', err);
+
+    // Fallback: show no tasks (or you can use sampleTasks if you want demo data)
+    renderTasks([]);
+    // renderTasks(sampleTasks); // <- use this instead if you want demo data on error
+  }
+}
+
 
 const tasksListEl = document.querySelector('.tasks-list');
 const inprogressListEl = document.querySelector('.inprogress-list');
@@ -117,34 +156,51 @@ function renderTasks(tasks){
     return t;
   }
 
-  // Process all tasks
-  const completedTasks = [];
-  tasks.forEach(task => {
-    if (task.status === 'Completed') {
-      completedCount++;
-      completedTasks.push(task);
-    } else {
-      // Filter into three active sections
+ // Process all tasks
+const completedTasks = [];
 
-      // Section 1: Tasks created today, not yet started
-      if (task.created === today && task.status === 'Not Started') {
-        tasksCount++;
-        tasksListEl.appendChild(createTaskCard(task, false));
-      }
+// helper to normalize dates like "12/5/2025" to "2025-12-05"
+function normalizeDateString(value) {
+  if (!value) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value; // already correct
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return null;
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
 
-      // Section 2: In Progress - sorted by longest-working-duration (oldest started first)
-      if (task.status === 'In Progress' && task.started && !task.deadline) {
-        inProgressCount++;
-        inprogressListEl.appendChild(createTaskCard(task, false));
-      }
+tasks.forEach(task => {
+  const status = (task.status || '').trim();
 
-      // Section 3: Tasks with deadline today
-      if (task.deadline === today) {
-        deadlineCount++;
-        deadlineListEl.appendChild(createTaskCard(task, false));
-      }
-    }
-  });
+  // Completed → store only, not displayed in columns
+  if (status === 'Completed') {
+    completedCount++;
+    completedTasks.push(task);
+    return;
+  }
+
+  // TASKS column → Not Started
+  if (status === 'Not Started') {
+    tasksCount++;
+    tasksListEl.appendChild(createTaskCard(task, false));
+  }
+
+  // IN PROGRESS column → In Progress
+  if (status === 'In Progress') {
+    inProgressCount++;
+    inprogressListEl.appendChild(createTaskCard(task, false));
+  }
+
+  // DEADLINE column → Due Date = TODAY
+  const normalized = normalizeDateString(task.deadline);
+  if (normalized === today) {
+    deadlineCount++;
+    deadlineListEl.appendChild(createTaskCard(task, false));
+  }
+});
+
 
   // Render only the most recently completed task (by completedAt, then started, then created)
   if (completedTasks.length > 0) {
@@ -207,7 +263,7 @@ function renderTasks(tasks){
 }
 
 // initial render: no tasks by default so the To-Do card is empty and only shows header/button
-renderTasks(sampleTasks);
+loadTasksFromServer();
 
 // Update the header date dynamically so it always shows today's day and date
 function updateHeaderDate() {
@@ -383,46 +439,3 @@ function attachTooltipTapSupport(){
 
 attachTooltipTapSupport();
 
-/* -------------------------
-  Google Sheets connection examples
-
-  1) If your sheet is PUBLIC (easiest):
-     - In Google Sheets: File → Publish to web → choose CSV for the sheet.
-     - You get a URL like:
-       https://docs.google.com/spreadsheets/d/<SHEET_ID>/export?format=csv&gid=<GID>
-     - Then fetch from frontend:
-       const csvUrl = 'https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/export?format=csv&gid=0';
-       fetch(csvUrl)
-         .then(r => r.text())
-         .then(txt => {
-           // simple CSV parse (doesn't handle quotes/commas inside fields)
-           const rows = txt.trim().split('\\n').map(r => r.split(','));
-           const headers = rows.shift().map(h => h.trim());
-           const data = rows.map(row => {
-             const obj = {};
-             row.forEach((c,i)=> obj[headers[i]] = c || '');
-             return obj;
-           });
-           // map your sheet columns to task shape
-           const tasks = data.map((r, idx)=>({
-             id: idx+1,
-             title: r.Title || r.title,
-             description: r.Description || r.description,
-             priority: r.Priority || 'Low',
-             status: r.Status || 'Not Started',
-             created: r.Created || '',
-             image: ''
-           }));
-           renderTasks(tasks);
-         });
-
-  2) If your sheet is PRIVATE: use the Google Sheets API server-side
-     - Use service account or OAuth credentials on your server.
-     - Server fetches sheet via Google Sheets API and returns JSON to the frontend.
-     - This keeps API keys/credentials secret and avoids CORS/public exposure.
-
-  Note on CORS & security:
-   - Public CSV approach is easiest for quick prototypes but makes data public.
-   - Private sheets require a backend proxy (recommended for production).
-
-------------------------- */
