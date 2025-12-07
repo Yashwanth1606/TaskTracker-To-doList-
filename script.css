@@ -171,7 +171,14 @@ body{
 
 /* GRID */
 .content-grid{display:flex;gap:18px;align-items:stretch;flex:1}
-.left-column{flex:1;display:flex;flex-direction:column;gap:18px}
+.left-column{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  gap:18px;
+  min-height: 0;   /* <-- REQUIRED FOR SCROLL INSIDE COLUMNS */
+}
+
 .right-column{flex:0 0 clamp(220px, 22vw, 360px);display:flex;flex-direction:column;gap:12px}
 
 /* Cards */
@@ -573,4 +580,126 @@ body{
 .task.dragging {
   opacity: 0.6;
   transform: scale(0.98);
+}
+
+/* ===========================================================
+   FIXED SCROLL SYSTEM FOR TASK COLUMNS (overrides below)
+   - targets the real DOM structure and ensures every flex parent
+     allows shrinking so child lists can create scrollbars.
+   =========================================================== */
+
+/* Ensure the left column card can shrink and pass height down.
+   We also cap the To-Do card height to the viewport minus header.
+   Adjust the 220px value if your page header is taller/shorter. */
+.left-column .card {
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* critical to allow inner scrollers to work */
+    max-height: calc(100vh - 220px); /* limit the card so it can't grow the page */
+    overflow: hidden;
+}
+
+/* The 3-column row must also shrink properly and fill the card height */
+.to-do-sections {
+    display: flex;
+    flex: 1 1 auto;
+    gap: 12px;
+    min-height: 0;  /* critical */
+    height: 100%;   /* ensure columns fill the capped card height */
+    overflow: hidden;
+}
+
+/* Each of the 3 sections (TASKS / IN-PROGRESS / DEADLINE) */
+.tasks-section,
+.inprogress-section,
+.deadline-section {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-height: 0; /* critical */
+    overflow: hidden;
+}
+
+/* The actual list inside each column */
+.tasks-list,
+.inprogress-list,
+.deadline-list {
+    flex: 1 1 auto;
+    min-height: 0; /* critical */
+    max-height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding-right: 6px;
+}
+
+/* Right Column Scroll Fix (Completed tasks) */
+.right-column .card {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    max-height: calc(100vh - 220px); /* keep consistent with left column */
+    overflow: hidden;
+}
+
+.completed-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    max-height: 300px; /* adjust as needed */
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Tweak: ensure the overall app grid doesn't expand undesirably */
+.app {
+  min-height: 100vh;  /* ensure page is at least viewport height */
+  overflow-x: hidden;  /* prevent horizontal expansion when lists scroll */
+}
+/* ============================================
+   MODERN, MINIMAL SCROLLBAR (Chrome / Edge / Safari)
+   ============================================ */
+
+.tasks-list::-webkit-scrollbar,
+.inprogress-list::-webkit-scrollbar,
+.deadline-list::-webkit-scrollbar,
+.completed-list::-webkit-scrollbar {
+    width: 6px;             /* thin scrollbar */
+}
+
+.tasks-list::-webkit-scrollbar-track,
+.inprogress-list::-webkit-scrollbar-track,
+.deadline-list::-webkit-scrollbar-track,
+.completed-list::-webkit-scrollbar-track {
+    background: transparent;  /* invisible when not scrolling */
+}
+
+.tasks-list::-webkit-scrollbar-thumb,
+.inprogress-list::-webkit-scrollbar-thumb,
+.deadline-list::-webkit-scrollbar-thumb,
+.completed-list::-webkit-scrollbar-thumb {
+    background: rgba(0,0,0,0.15);  
+    border-radius: 10px;
+    transition: background 0.3s ease;
+}
+
+/* Darken thumb slightly only while actively scrolling */
+.tasks-list:hover::-webkit-scrollbar-thumb,
+.inprogress-list:hover::-webkit-scrollbar-thumb,
+.deadline-list:hover::-webkit-scrollbar-thumb,
+.completed-list:hover::-webkit-scrollbar-thumb {
+    background: rgba(0,0,0,0.25);
+}
+
+/* ============================================
+   FIREFOX SUPPORT
+   ============================================ */
+.tasks-list,
+.inprogress-list,
+.deadline-list,
+.completed-list {
+    scrollbar-width: thin;              /* thin */
+    scrollbar-color: rgba(0,0,0,0.25) transparent;
+}
+::-webkit-scrollbar {
+    display: none;
 }

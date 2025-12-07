@@ -9,7 +9,7 @@ function getTodayDateString() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-// Task model now includes: id, title, description, priority, status, created, started, deadline
+// Task model now includes: id, title, description, priority, status, created, started, deadline, completedAt
 const sampleTasks = [
   {
     id: 1,
@@ -19,7 +19,8 @@ const sampleTasks = [
     status: 'Not Started',
     created: getTodayDateString(),
     started: null,
-    deadline: null
+    deadline: null,
+    completedAt: null
   },
   {
     id: 2,
@@ -29,7 +30,8 @@ const sampleTasks = [
     status: 'In Progress',
     created: getTodayDateString(),
     started: getTodayDateString() + 'T09:30',
-    deadline: getTodayDateString()
+    deadline: getTodayDateString(),
+    completedAt: null
   },
   {
     id: 3,
@@ -39,7 +41,8 @@ const sampleTasks = [
     status: 'Not Started',
     created: getTodayDateString(),
     started: null,
-    deadline: getTodayDateString()
+    deadline: getTodayDateString(),
+    completedAt: null
   },
   {
     id: 4,
@@ -49,7 +52,8 @@ const sampleTasks = [
     status: 'In Progress',
     created: '2025-01-13',
     started: '2025-01-15T11:00',
-    deadline: null
+    deadline: null,
+    completedAt: null
   },
   {
     id: 5,
@@ -59,33 +63,36 @@ const sampleTasks = [
     status: 'Completed',
     created: '2025-01-10',
     started: '2025-01-12T10:00',
-    deadline: '2025-01-15'
+    deadline: '2025-01-15',
+    completedAt: getTodayDateString() + 'T14:00'
   }
 ];
+
 async function loadTasksFromServer() {
   try {
     const res = await fetch('http://localhost:3000/tasks');
+    if (!res.ok) throw new Error('Network response was not ok: ' + res.status);
     const data = await res.json();
 
-    // Backend returns: { ok: true, tasks: [ { date, time, title, description, priority, dueDate, status } ] }
-    const tasks = (data.tasks || []).map((t, idx) => ({
-      id: idx + 1,
+    // Backend returns: { ok: true, tasks: [ { id, date, time, title, description, priority, dueDate, status, started, completedAt } ] }
+    const tasks = (data.tasks || []).map((t) => ({
+      id: t.id,                     // use backend id (maps to sheet row)
       title: t.title,
       description: t.description || '',
       priority: t.priority || 'Low',
       status: t.status || 'Not Started',
 
-      // use sheet "Date" column as created date
+      // use sheet "Date" column as created date (A)
       created: t.date || getTodayDateString(),
 
-      // we’re not tracking these yet in the sheet – keep null for now
-      started: null,
+      // read started/completed from the sheet fields (H/I)
+      started: t.started || null,
 
-      // use sheet "Due Date" column as deadline
+      // use sheet "Due Date" column as deadline (F)
       deadline: t.dueDate || null,
 
-      // we don't have a completedAt timestamp in the sheet, so leave null.
-      completedAt: null
+      // completedAt from sheet (I)
+      completedAt: t.completedAt || null
     }));
 
     // store globally for drag/drop updates
@@ -98,16 +105,58 @@ async function loadTasksFromServer() {
   } catch (err) {
     console.error('Failed to load tasks from server', err);
 
-    // Fallback: show no tasks (or you can use sampleTasks if you want demo data)
+    // Fallback: show no tasks (or sampleTasks if you want demo data)
     renderTasks([]);
     window.currentTasks = [];
-    // you may still want to enable the drag handlers on the (empty) columns
     if (typeof enableTaskDragAndDrop === 'function') enableTaskDragAndDrop();
   }
 }
 
+// Update the header date dynamically so it always shows today's day and date
+function updateHeaderDate() {
+  const headerDateEl = document.querySelector('.top-right .date');
+  if (!headerDateEl) return;
+  const now = new Date();
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const dayName = days[now.getDay()];
+  const dd = String(now.getDate()).padStart(2, '0');
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const yyyy = now.getFullYear();
+  headerDateEl.innerHTML = `${dayName} <span>${dd}/${mm}/${yyyy}</span>`;
+}
 
+// set avatar initials and welcome first name based on the profile name in the sidebar
+function syncProfileDisplay(){
+  const nameEl = document.querySelector('.profile .name');
+  const avatarEl = document.querySelector('.profile .avatar');
+  const welcomeNameEl = document.querySelector('.welcome-name');
+  if(!nameEl) return;
 
+  const full = String(nameEl.textContent || '').trim();
+  if(!full) return;
+  const parts = full.split(/\s+/);
+  const firstName = parts[0] || full;
+
+  // initials: first char of first and last (if present)
+  let initials = '';
+  if(parts.length === 1){
+    initials = (parts[0][0] || '').toUpperCase();
+  } else {
+    initials = ((parts[0][0] || '') + (parts[parts.length-1][0] || '')).toUpperCase();
+  }
+
+  if(avatarEl) avatarEl.textContent = initials;
+  if(welcomeNameEl) welcomeNameEl.textContent = firstName;
+
+  const emailEl = document.querySelector('.profile .email');
+  if(emailEl && avatarEl){
+    const emailText = String(emailEl.textContent || '').trim();
+    emailEl.style.display = 'none';
+    avatarEl.dataset.email = emailText;
+  }
+}
+
+// DOM element references (these must exist before calling loadTasksFromServer/renderTasks)
 const tasksListEl = document.querySelector('.tasks-list');
 const inprogressListEl = document.querySelector('.inprogress-list');
 const deadlineListEl = document.querySelector('.deadline-list');
@@ -116,30 +165,23 @@ const pctCompletedEl = document.getElementById('pctCompleted');
 const pctInProgressEl = document.getElementById('pctInProgress');
 const pctNotStartedEl = document.getElementById('pctNotStarted');
 
-function renderTasks(tasks){
-  // Clear all sections
-  tasksListEl.innerHTML = '';
-  inprogressListEl.innerHTML = '';
-  deadlineListEl.innerHTML = '';
-  completedListEl.innerHTML = '';
+// Start the app after DOM nodes and helpers are defined
+loadTasksFromServer();
+updateHeaderDate();
+syncProfileDisplay();
 
-  const today = getTodayDateString();
-  let tasksCount = 0, inProgressCount = 0, deadlineCount = 0, completedCount = 0;
-
+// utility: title case
 function toTitleCase(str) {
-  return str
+  return String(str || '')
     .toLowerCase()
     .split(" ")
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
 }
 
-
 function createTaskCard(task, showDescription = true) {
   const t = document.createElement('div');
   t.className = 'task card-style';
-
-  // make draggable & store id so drop handlers can find it
   t.setAttribute('draggable', 'true');
   t.dataset.taskId = String(task.id);
 
@@ -156,7 +198,7 @@ function createTaskCard(task, showDescription = true) {
   const content = document.createElement('div');
   content.className = 'content';
 
-  // Title (big) — using your existing toTitleCase helper
+  // Title (big)
   const title = document.createElement('div');
   title.className = 'task-title';
   title.textContent = toTitleCase(task.title || 'Untitled task');
@@ -203,11 +245,6 @@ function createTaskCard(task, showDescription = true) {
   return t;
 }
 
-
-
- // Process all tasks
-const completedTasks = [];
-
 // helper to normalize dates like "12/5/2025" to "2025-12-05"
 function normalizeDateString(value) {
   if (!value) return null;
@@ -220,39 +257,50 @@ function normalizeDateString(value) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-tasks.forEach(task => {
-  const status = (task.status || '').trim();
+function renderTasks(tasks){
+  // Clear all sections
+  if (tasksListEl) tasksListEl.innerHTML = '';
+  if (inprogressListEl) inprogressListEl.innerHTML = '';
+  if (deadlineListEl) deadlineListEl.innerHTML = '';
+  if (completedListEl) completedListEl.innerHTML = '';
 
-  // Completed → store only, not displayed in columns
-  if (status === 'Completed') {
-    completedCount++;
-    completedTasks.push(task);
-    return;
-  }
+  const today = getTodayDateString();
+  let tasksCount = 0, inProgressCount = 0, deadlineCount = 0, completedCount = 0;
 
-  // TASKS column → Not Started
-  if (status === 'Not Started') {
-    tasksCount++;
-    tasksListEl.appendChild(createTaskCard(task, false));
-  }
+  const completedTasks = [];
 
-  // IN PROGRESS column → In Progress
-  if (status === 'In Progress') {
-    inProgressCount++;
-    inprogressListEl.appendChild(createTaskCard(task, false));
-  }
+  tasks.forEach(task => {
+    const status = (task.status || '').trim();
 
-  // DEADLINE column → Due Date = TODAY
-  const normalized = normalizeDateString(task.deadline);
-  if (normalized === today) {
-    deadlineCount++;
-    deadlineListEl.appendChild(createTaskCard(task, false));
-  }
-});
+    // Completed → store only, not displayed in columns
+    if (status === 'Completed') {
+      completedCount++;
+      completedTasks.push(task);
+      return;
+    }
 
+    // TASKS column → Not Started
+    if (status === 'Not Started') {
+      tasksCount++;
+      if (tasksListEl) tasksListEl.appendChild(createTaskCard(task, false));
+    }
+
+    // IN PROGRESS column → In Progress
+    if (status === 'In Progress') {
+      inProgressCount++;
+      if (inprogressListEl) inprogressListEl.appendChild(createTaskCard(task, false));
+    }
+
+    // DEADLINE column → Due Date = TODAY
+    const normalized = normalizeDateString(task.deadline);
+    if (normalized === today) {
+      deadlineCount++;
+      if (deadlineListEl) deadlineListEl.appendChild(createTaskCard(task, false));
+    }
+  });
 
   // Render only the most recently completed task (by completedAt, then started, then created)
-  if (completedTasks.length > 0) {
+  if (completedTasks.length > 0 && completedListEl) {
     function getTaskTime(t) {
       // prefer explicit completedAt, then started, then created
       const ts = t.completedAt || t.started || t.created || '';
@@ -263,40 +311,39 @@ tasks.forEach(task => {
     const latest = completedTasks[0];
     const citem = document.createElement('div');
     citem.className = 'completed-item';
-    // show only title and a small 'Completed' badge
     citem.innerHTML = `<div class="info"><h5>${latest.title}</h5></div><div class="when">Completed</div>`;
     completedListEl.appendChild(citem);
   }
 
   // Sort in-progress section by longest working duration (oldest started first)
-  const inprogressCards = Array.from(inprogressListEl.querySelectorAll('.task'));
-  if (inprogressCards.length > 1) {
-    inprogressCards.sort((a, b) => {
-      // Find corresponding tasks to get started times
-      const aTask = tasks.find(t => t.title === a.querySelector('h4').textContent);
-      const bTask = tasks.find(t => t.title === b.querySelector('h4').textContent);
-      if (aTask && bTask && aTask.started && bTask.started) {
-        return new Date(aTask.started) - new Date(bTask.started);
-      }
-      return 0;
-    });
-    inprogressListEl.innerHTML = '';
-    inprogressCards.forEach(card => inprogressListEl.appendChild(card));
+  if (inprogressListEl) {
+    const inprogressCards = Array.from(inprogressListEl.querySelectorAll('.task'));
+    if (inprogressCards.length > 1) {
+      inprogressCards.sort((a, b) => {
+        // Find corresponding tasks to get started times (match on .task-title text)
+        const aTitleEl = a.querySelector('.task-title');
+        const bTitleEl = b.querySelector('.task-title');
+        const aTask = tasks.find(t => t.title === (aTitleEl ? aTitleEl.textContent : ''));
+        const bTask = tasks.find(t => t.title === (bTitleEl ? bTitleEl.textContent : ''));
+        if (aTask && bTask && aTask.started && bTask.started) {
+          return new Date(aTask.started) - new Date(bTask.started);
+        }
+        return 0;
+      });
+      inprogressListEl.innerHTML = '';
+      inprogressCards.forEach(card => inprogressListEl.appendChild(card));
+    }
   }
 
   // Update status percentages
   const totalCount = tasks.length || 1;
-  const completedTotal = tasks.filter(t => t.status === 'Completed').length;
-  const inProgressTotal = tasks.filter(t => t.status === 'In Progress').length;
-  const notStartedTotal = tasks.filter(t => t.status === 'Not Started').length;
+  const pctCompleted = Math.round((completedCount / totalCount) * 100);
+  const pctInProgress = Math.round((inProgressCount / totalCount) * 100);
+  const pctNotStarted = Math.round((tasksCount / totalCount) * 100);
 
-  const pctCompleted = Math.round((completedTotal / totalCount) * 100);
-  const pctInProgress = Math.round((inProgressTotal / totalCount) * 100);
-  const pctNotStarted = Math.round((notStartedTotal / totalCount) * 100);
-
-  pctCompletedEl.textContent = `${pctCompleted}%`;
-  pctInProgressEl.textContent = `${pctInProgress}%`;
-  pctNotStartedEl.textContent = `${pctNotStarted}%`;
+  if (pctCompletedEl) pctCompletedEl.textContent = `${pctCompleted}%`;
+  if (pctInProgressEl) pctInProgressEl.textContent = `${pctInProgress}%`;
+  if (pctNotStartedEl) pctNotStartedEl.textContent = `${pctNotStarted}%`;
 
   // Update donut visuals
   document.querySelectorAll('.donut').forEach((d, i) => {
@@ -384,211 +431,27 @@ async function updateTaskStatusOnServer(id, newStatus) {
   return res.json();
 }
 
-
-// initial render: no tasks by default so the To-Do card is empty and only shows header/button
-loadTasksFromServer();
-
-// Update the header date dynamically so it always shows today's day and date
-function updateHeaderDate() {
-  const headerDateEl = document.querySelector('.top-right .date');
-  if (!headerDateEl) return;
-  const now = new Date();
-  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const dayName = days[now.getDay()];
-  const dd = String(now.getDate()).padStart(2, '0');
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  const yyyy = now.getFullYear();
-  headerDateEl.innerHTML = `${dayName} <span>${dd}/${mm}/${yyyy}</span>`;
-}
-
-// call it once on load
-updateHeaderDate();
-
-// set avatar initials and welcome first name based on the profile name in the sidebar
-function syncProfileDisplay(){
-  const nameEl = document.querySelector('.profile .name');
-  const avatarEl = document.querySelector('.profile .avatar');
-  const welcomeNameEl = document.querySelector('.welcome-name');
-  if(!nameEl) return;
-
-  const full = String(nameEl.textContent || '').trim();
-  if(!full) return;
-  const parts = full.split(/\s+/);
-  const firstName = parts[0] || full;
-
-  // initials: first char of first and last (if present)
-  let initials = '';
-  if(parts.length === 1){
-    initials = (parts[0][0] || '').toUpperCase();
-  } else {
-    initials = ((parts[0][0] || '') + (parts[parts.length-1][0] || '')).toUpperCase();
-  }
-
-  if(avatarEl) avatarEl.textContent = initials;
-  // make avatar focusable + create tooltip with email (hide the visible email in the sidebar)
-  const emailEl = document.querySelector('.profile .email');
-  if(emailEl && avatarEl){
-    const emailText = String(emailEl.textContent || '').trim();
-    // hide the visible email in the sidebar
-    emailEl.style.display = 'none';
-
-      // make avatar keyboard-focusable to reveal tooltip
-      avatarEl.setAttribute('tabindex','0');
-
-      // attach tooltip to the .profile container but position it above the avatar
-      const profileEl = document.querySelector('.profile');
-      const avatarElLocal = avatarEl; // use existing avatar element
-      let tooltip = profileEl ? profileEl.querySelector('.avatar-tooltip') : null;
-      if(!tooltip && profileEl){
-        tooltip = document.createElement('div');
-        tooltip.className = 'avatar-tooltip';
-        profileEl.appendChild(tooltip);
-      }
-    tooltip.textContent = emailText;
-    // also put email on data-email attribute if needed
-    avatarEl.dataset.email = emailText;
-      // connect accessible relation
-      if(tooltip) {
-        tooltip.id = tooltip.id || 'avatar-tooltip';
-        avatarEl.setAttribute('aria-describedby', tooltip.id);
-      }
-
-      // position tooltip above the avatar so it doesn't overlap other elements
-          // expose a shared helper to accurately position the avatar tooltip above the avatar
-          function positionTooltipAbove(){
-            if(!tooltip || !avatarElLocal || !profileEl) return;
-            // measure positions relative to profileEl
-            const avatarRect = avatarElLocal.getBoundingClientRect();
-            const profileRect = profileEl.getBoundingClientRect();
-            const tooltipRect = tooltip.getBoundingClientRect();
-
-            // compute left so tooltip is centered above avatar
-            const left = (avatarRect.left - profileRect.left) + (avatarRect.width / 2) - (tooltipRect.width / 2);
-            const top = (avatarRect.top - profileRect.top) - tooltipRect.height - 8; // 8px gap
-
-            tooltip.style.left = Math.max(6, left) + 'px';
-            tooltip.style.top = Math.max(-9999, top) + 'px';
-          }
-
-      // update position after DOM paint when tooltip is added
-      requestAnimationFrame(()=>{
-        positionTooltipAbove();
-      });
-
-      // reposition on resize or scroll
-      window.addEventListener('resize', positionTooltipAbove);
-      window.addEventListener('scroll', positionTooltipAbove, true);
-  }
-  if(welcomeNameEl) welcomeNameEl.textContent = firstName;
-}
-
-// run it on load
-syncProfileDisplay();
-
-// tap/click support for touch devices — toggle tooltip on the .profile element
-// Config: how long (ms) to auto-dismiss tooltip on touch devices after opening
-const TOOLTIP_AUTO_DISMISS_MS = 3000;
-
-function attachTooltipTapSupport(){
-  const profileEl = document.querySelector('.profile');
-  if(!profileEl) return;
-  const avatarEl = profileEl.querySelector('.avatar');
-  if(!avatarEl) return;
-
-  let autoDismissTimer = null;
-
-  const closeTooltip = () => {
-    profileEl.classList.remove('tooltip-visible');
-    avatarEl.setAttribute('aria-expanded','false');
-    if(autoDismissTimer){
-      clearTimeout(autoDismissTimer);
-      autoDismissTimer = null;
-    }
-  };
-
-  const toggleTooltip = (e) => {
-    // keep clicks on the avatar from bubbling to the document close handler
-    e.stopPropagation();
-    const isVisible = profileEl.classList.toggle('tooltip-visible');
-    avatarEl.setAttribute('aria-expanded', String(isVisible));
-
-    // If this is a touch/coarse pointer device and tooltip opened, auto-dismiss after a timeout
-    const isTouch = typeof window !== 'undefined' && ('ontouchstart' in window || window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
-    if(isVisible && isTouch){
-      if(autoDismissTimer) clearTimeout(autoDismissTimer);
-      autoDismissTimer = setTimeout(()=>{
-        closeTooltip();
-      }, TOOLTIP_AUTO_DISMISS_MS);
-    }
-    // if closed manually clear timer
-    if(!isVisible && autoDismissTimer){
-      clearTimeout(autoDismissTimer);
-      autoDismissTimer = null;
-    }
-  };
-
-  // toggle on click/tap for touch / small-pointer devices. Also works for mouse if user clicks.
-  avatarEl.addEventListener('click', (e)=>{
-    // only toggle where appropriate (touch/small pointer) but allow click too
-    toggleTooltip(e);
-    // reposition if tooltip is shown (wrapped content may change tooltip width/height)
-    setTimeout(()=>{
-      // small delay to allow layout changes
-      const evt = new Event('resize');
-      window.dispatchEvent(evt);
-    }, 0);
-  });
-
-  // accessibility: toggle with Enter / Space when avatar focused
-  avatarEl.addEventListener('keydown', (e)=>{
-    if(e.key === 'Enter' || e.key === ' '){
-      e.preventDefault();
-      toggleTooltip(e);
-    }
-  });
-
-  // close when clicking anywhere outside the profile
-  document.addEventListener('click', (e)=>{
-    if(profileEl.classList.contains('tooltip-visible') && !profileEl.contains(e.target)){
-      closeTooltip();
-    }
-  });
-
-  // close on Escape
-  document.addEventListener('keydown', (e)=>{
-    if(e.key === 'Escape') closeTooltip();
-  });
-}
-
-attachTooltipTapSupport();
-
-// ---------- Add Task modal behavior ----------
-(function(){
-
-  // ELEMENTS
+/* ------------------ Add Task Modal & Submit ------------------ */
+(function () {
   const backdrop = document.getElementById('at_backdrop');
-  const openBtn = document.getElementById('addTaskSmall');
-  const openBtnTop = document.getElementById('createTaskBtn');
+  const openBtn = document.getElementById('addTaskSmall'); // top + button (adjust id if needed)
+  const openBtnTop = document.getElementById('createTaskBtn'); // other button id
   const closeX = document.getElementById('at_close_x');
-  const cancelBtn = document.getElementById('at_cancel');
   const form = document.getElementById('at_form');
-
   const inputTitle = document.getElementById('at_title');
   const inputDesc = document.getElementById('at_description');
   const inputPriority = document.getElementById('at_priority');
   const inputDue = document.getElementById('at_dueDate');
   const submitBtn = document.getElementById('at_submit');
+  const cancelBtn = document.getElementById('at_cancel');
 
-  // FUNCTIONS
   function openModal(){
     if(!backdrop) return;
-    // reset inputs
-    inputTitle.value = '';
-    inputDesc.value = '';
-    inputPriority.value = 'High';
-    inputDue.value = '';
-    // give keyboard focus
-    setTimeout(()=> inputTitle.focus(), 10);
+    if (inputTitle) inputTitle.value = '';
+    if (inputDesc) inputDesc.value = '';
+    if (inputPriority) inputPriority.value = 'High';
+    if (inputDue) inputDue.value = '';
+    setTimeout(()=> inputTitle && inputTitle.focus(), 10);
     backdrop.style.display = 'flex';
     backdrop.setAttribute('aria-hidden','false');
     document.body.style.overflow = 'hidden'; // prevent background scroll
@@ -608,15 +471,13 @@ attachTooltipTapSupport();
       openModal();
     });
   } else {
-    console.warn("Add Task button (#addTaskSmall) not found. Add id='addTaskSmall' to your + Add task button or update the selector.");
+    // it's fine if button id differs; top-button handled below
   }
   if (openBtnTop) {
     openBtnTop.addEventListener('click', (e) => {
       e.preventDefault();
       openModal();
     });
-  } else {
-    console.warn("Add Task button (#createTaskBtn) not found. Add id='createTaskBtn' to your + Add task button or update the selector.");
   }
 
   // CLOSE MODAL
@@ -648,7 +509,7 @@ attachTooltipTapSupport();
 
       if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.textContent = "Adding...";
+        submitBtn.textContent = "Adding.";
       }
 
       try {
@@ -657,6 +518,8 @@ attachTooltipTapSupport();
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ title, description, priority, dueDate, status })
         });
+
+        if (!res.ok) throw new Error('Network error: ' + res.status);
 
         if (submitBtn) {
           submitBtn.disabled = false;
