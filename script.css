@@ -703,3 +703,50 @@ body{
 ::-webkit-scrollbar {
     display: none;
 }
+
+/* Completed task — detailed small layout */
+.completed-item.completed-item--detailed {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #ecfdf5 0%, #dcfce7 100%);
+  border: 1px solid rgba(16,185,129,0.12);
+  box-shadow: 0 8px 20px rgba(16,185,129,0.04);
+}
+
+.completed-item.completed-item--detailed .completed-title {
+  margin: 0 0 8px 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #065f46;
+  line-height: 1.2;
+}
+/* Completed meta stacked vertically */
+.completed-item.completed-item--detailed .completed-meta {
+  margin: 0;
+  font-size: 13px;
+  color: #064e3b;
+  display: flex;
+  flex-direction: column;   /* stack vertically */
+  align-items: flex-start;  /* left aligned */
+  gap: 4px;                 /* small spacing between lines */
+}
+/* Deadline badge full-width look */
+.completed-item .completed-deadline {
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-weight: 700;
+  background: rgba(6,95,70,0.06);
+  border: 1px solid rgba(6,95,70,0.08);
+  color: #064e3b;
+  width: fit-content;        /* shrink to text */
+}
+/* duration smaller / muted */
+.completed-item .completed-duration {
+  color: #064e3b;
+  opacity: 0.95;
+}
+/* remove the small "when" pill used earlier (if present) */
+.completed-item .when { display: none; }

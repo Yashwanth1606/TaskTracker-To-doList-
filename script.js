@@ -299,21 +299,74 @@ function renderTasks(tasks){
     }
   });
 
-  // Render only the most recently completed task (by completedAt, then started, then created)
-  if (completedTasks.length > 0 && completedListEl) {
+    if (completedTasks.length > 0 && completedListEl) {
+    // helper to pick a numeric timestamp to sort by
     function getTaskTime(t) {
-      // prefer explicit completedAt, then started, then created
       const ts = t.completedAt || t.started || t.created || '';
       const d = new Date(ts);
       return isNaN(d.getTime()) ? 0 : d.getTime();
     }
-    completedTasks.sort((a,b) => getTaskTime(b) - getTaskTime(a));
+
+    // sort: newest completed first
+    completedTasks.sort((a, b) => getTaskTime(b) - getTaskTime(a));
     const latest = completedTasks[0];
+
+    // compute duration between when task started (or created) and when completed
+    function getDurationString(startStr, endStr) {
+      if (!endStr) return 'Unknown';
+      const end = new Date(endStr);
+      const start = startStr ? new Date(startStr) : null;
+      if (isNaN(end.getTime())) return 'Unknown';
+      if (!start || isNaN(start.getTime())) {
+        // fallback: use created if started missing
+        return 'Took: ' + Math.round((end - (start || new Date())) / (1000*60)) + ' minutes';
+      }
+      let diff = Math.max(0, end - start); // millis
+      const days = Math.floor(diff / (1000*60*60*24));
+      diff -= days * (1000*60*60*24);
+      const hours = Math.floor(diff / (1000*60*60));
+      diff -= hours * (1000*60*60);
+      const minutes = Math.floor(diff / (1000*60));
+      const parts = [];
+      if (days) parts.push(days + (days === 1 ? ' day' : ' days'));
+      if (hours) parts.push(hours + (hours === 1 ? ' hour' : ' hours'));
+      if (!days && minutes) parts.push(minutes + (minutes === 1 ? ' minute' : ' minutes'));
+      return parts.length ? ('Took: ' + parts.join(' ')) : 'Took: < 1 minute';
+    }
+
+    // Did it miss the deadline?
+    // normalize deadline (deadline may be date-only): treat deadline end-of-day as the cutoff
+    function missedDeadline(task) {
+      if (!task.deadline) return 'No';
+      if (!task.completedAt) return 'Unknown';
+      const deadlineNorm = normalizeDateString(task.deadline);
+      if (!deadlineNorm) return 'Unknown';
+      // treat deadline as the end of that day
+      const dl = new Date(deadlineNorm + 'T23:59:59');
+      const comp = new Date(task.completedAt);
+      if (isNaN(dl.getTime()) || isNaN(comp.getTime())) return 'Unknown';
+      return comp > dl ? 'Yes' : 'No';
+    }
+
+    const durationStr = getDurationString(latest.started || latest.created, latest.completedAt);
+    const deadlineStatus = missedDeadline(latest);
+
+    // Build new completed item markup: Title, duration, deadline flag
     const citem = document.createElement('div');
-    citem.className = 'completed-item';
-    citem.innerHTML = `<div class="info"><h5>${latest.title}</h5></div><div class="when">Completed</div>`;
+    citem.className = 'completed-item completed-item--detailed';
+
+    citem.innerHTML = `
+      <div class="info">
+        <h5 class="completed-title">${latest.title}</h5>
+        <p class="completed-meta">
+          <span class="completed-duration">${durationStr}</span>
+          <span class="completed-deadline">Deadline: ${deadlineStatus}</span>
+        </p>
+      </div>
+    `;
     completedListEl.appendChild(citem);
   }
+
 
   // Sort in-progress section by longest working duration (oldest started first)
   if (inprogressListEl) {
@@ -373,6 +426,9 @@ function enableTaskDragAndDrop() {
   interactiveCols.forEach(col => {
     if (!col.el) return;
 
+    // per-column busy flag (prevents concurrent drops on same column)
+    col._busy = false;
+
     col.el.addEventListener('dragover', function (ev) {
       ev.preventDefault();
       col.el.classList.add('drag-over');
@@ -386,17 +442,72 @@ function enableTaskDragAndDrop() {
       ev.preventDefault();
       col.el.classList.remove('drag-over');
 
+      // prevent concurrent processing
+      if (col._busy) return;
+
       const taskId = ev.dataTransfer.getData('text/plain');
       if (!taskId) return;
+      const idNum = isNaN(taskId) ? taskId : Number(taskId);
 
       const draggedEl = document.querySelector(`[data-task-id="${taskId}"]`);
       if (!draggedEl) return;
 
-      // append the card visually
-      col.el.appendChild(draggedEl);
+      // mark busy
+      col._busy = true;
 
-      // update in-memory tasks copy
-      const idNum = isNaN(taskId) ? taskId : Number(taskId);
+      // refs to restore on error
+      const originalParent = draggedEl.parentElement;
+      const originalNextSibling = draggedEl.nextSibling;
+
+      // duplicate guard: don't insert if destination already has the item
+      if (col.el.querySelector(`[data-task-id="${taskId}"]`)) {
+        // still attempt idempotent server update and refresh
+        try {
+          if (window.currentTasks && Array.isArray(window.currentTasks)) {
+            const t = window.currentTasks.find(x => x.id === idNum);
+            if (t) t.status = col.status;
+          }
+          await updateTaskStatusOnServer(idNum, col.status);
+          if (typeof loadTasksFromServer === 'function') setTimeout(() => loadTasksFromServer(), 150);
+        } catch (err) {
+          console.error('Failed update when duplicate found', err);
+          if (typeof loadTasksFromServer === 'function') loadTasksFromServer();
+        } finally {
+          col._busy = false;
+        }
+        return;
+      }
+
+      // create UI placeholder / clone
+      let placeholder = null;
+      if (String(col.status).toLowerCase() === 'completed') {
+        // create a completed-style placeholder so the completed column shows green immediately
+        placeholder = document.createElement('div');
+        placeholder.className = 'completed-item completed-item--detailed';
+        // show title and a "Completing..." meta while waiting for server
+        const safeTitle = (draggedEl.querySelector('.task-title') && draggedEl.querySelector('.task-title').textContent) || draggedEl.textContent || 'Completed task';
+        placeholder.innerHTML = `
+          <div class="info">
+            <h5 class="completed-title">${safeTitle}</h5>
+            <p class="completed-meta">
+              <span class="completed-duration">Completing...</span>
+              <span class="completed-deadline">Deadline: ...</span>
+            </p>
+          </div>
+        `;
+        // Insert placeholder: replace first child (so it doesn't append below)
+        if (col.el.firstElementChild) col.el.replaceChild(placeholder, col.el.firstElementChild);
+        else col.el.appendChild(placeholder);
+      } else {
+        // non-completed columns: clone the card for immediate visual feedback
+        const clone = draggedEl.cloneNode(true);
+        clone.setAttribute('data-task-id', String(taskId));
+        clone.draggable = true;
+        placeholder = clone;
+        col.el.appendChild(clone);
+      }
+
+      // update in-memory tasks for immediate UI state
       if (window.currentTasks && Array.isArray(window.currentTasks)) {
         const t = window.currentTasks.find(x => x.id === idNum);
         if (t) t.status = col.status;
@@ -405,19 +516,49 @@ function enableTaskDragAndDrop() {
       // persist to backend
       try {
         await updateTaskStatusOnServer(idNum, col.status);
+
+        // on success: remove original dragged element from source column (if still present)
+        try {
+          if (originalParent && originalParent.contains(draggedEl)) {
+            originalParent.removeChild(draggedEl);
+          }
+        } catch (remErr) {
+          // non-fatal; log for debugging
+          console.warn('Could not remove original element after success', remErr);
+        }
+
+        // reload authoritative state (this will render final completed info such as duration)
+        if (typeof loadTasksFromServer === 'function') {
+          setTimeout(() => loadTasksFromServer(), 150);
+        }
       } catch (err) {
         console.error('Failed to update task status', err);
-        if (typeof loadTasksFromServer === 'function') loadTasksFromServer(); // revert visually
-        return;
-      }
 
-      // refresh widgets (donuts, completed card) by reloading tasks from server
-      if (typeof loadTasksFromServer === 'function') {
-        setTimeout(() => loadTasksFromServer(), 200);
+        // remove placeholder inserted earlier
+        try {
+          if (placeholder && placeholder.parentElement) placeholder.parentElement.removeChild(placeholder);
+        } catch (e) { /* ignore */ }
+
+        // restore original element to its previous place
+        try {
+          if (originalParent) {
+            if (originalNextSibling) originalParent.insertBefore(draggedEl, originalNextSibling);
+            else originalParent.appendChild(draggedEl);
+          }
+        } catch (revertErr) {
+          console.error('Failed to revert dragged element on error', revertErr);
+        }
+
+        // reload authoritative state to ensure consistency
+        if (typeof loadTasksFromServer === 'function') loadTasksFromServer();
+      } finally {
+        col._busy = false;
       }
     });
   });
 }
+
+
 
 // Persist status change to backend. Adjust path if your server uses different route.
 async function updateTaskStatusOnServer(id, newStatus) {
