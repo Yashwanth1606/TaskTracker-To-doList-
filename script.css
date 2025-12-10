@@ -125,7 +125,7 @@ body{
    MAIN content (dark)
    ------------------------- */
 .main{
-  padding:18px 22px 50px 32px; /* reduce bottom padding so content fits nicely */
+  padding:18px 22px 20px 32px; /* reduce bottom padding so content fits nicely */
   display:flex; flex-direction:column;
   height:100%;                /* fill remaining height */
   min-height:0;
@@ -313,9 +313,9 @@ body{
   color:#e6eef6;
 }
 .completed-item .info{flex:1;padding-right:12px}
-.completed-item h5{margin:0;font-size:14px;color:#ddf7ec;font-weight:700}
-.completed-item p{margin:0;font-size:12px;color:var(--muted)}
-.completed-item .when{ padding:6px 10px;border-radius:6px;border:1px solid rgba(16,185,129,0.08); color:#0ee3a8;background:rgba(0,0,0,0.25);font-weight:700; }
+.completed-item h5{margin:5px;font-size:14px;color:#ddf7ec;font-weight:700}
+.completed-item p{margin: 5px;;font-size:12px;color:var(--muted)}
+.completed-item .when{ padding:3px 10px;border-radius:6px;border:1px solid rgba(16,185,129,0.08); color:#0ee3a8;background:rgba(0,0,0,0.25);font-weight:700; }
 
 /* -------------------------
    Donut charts (dark)

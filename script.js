@@ -360,7 +360,9 @@ function renderTasks(tasks){
         <h5 class="completed-title">${latest.title}</h5>
         <p class="completed-meta">
           <span class="completed-duration">${durationStr}</span>
+        <p class="completed-meta">
           <span class="completed-deadline">Deadline: ${deadlineStatus}</span>
+        </p>
         </p>
       </div>
     `;
