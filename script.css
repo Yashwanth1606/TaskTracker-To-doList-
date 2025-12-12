@@ -151,7 +151,32 @@ body{
   background:var(--accent);border:0;color:#fff;padding:8px 12px;border-radius:10px;font-weight:700;cursor:pointer;
   box-shadow: 0 8px 30px rgba(124,58,237,0.18);
 }
-.top-right .date{font-size:13px;color:var(--muted)}
+
+.top-right .date {
+  position: absolute;       /* remove from document flow so it doesn't push content */
+  z-index: 999;             /* stay on top of cards/header */
+  right: 160px;              /* align roughly with right edge of right-column; tweak if needed */
+  top: 70px;               /* <-- Tweak this value until the date sits exactly above Task Status */
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+  pointer-events: none;     /* optional: clicks pass through to underlying items */
+  transform: translateY(-50%); /* gently center vertically relative to 'top' if you prefer */
+}
+
+/* smaller screens: adjust top/right if the layout collapses */
+@media (max-width: 1200px) {
+  .top-right .date {
+    right: 28px;
+    top: 200px;
+    font-size: 12px;
+  }
+}
+@media (max-width: 980px) {
+  /* hide or reposition if it overlaps on mobile */
+  .top-right .date { display: none; } 
+}
+
 
 /* welcome */
 .welcome{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
@@ -393,7 +418,7 @@ body{
   .app{grid-template-columns: clamp(90px, 22vw, 220px) 1fr; padding:12px}
   .sidebar{padding:12px;gap:10px}
   .avatar{width:var(--avatar-size-md); height:var(--avatar-size-md); min-width:var(--avatar-size-md); min-height:var(--avatar-size-md); max-width:var(--avatar-size-md); max-height:var(--avatar-size-md); font-size:14px}
-  .profile-info .name{font-size:14px}
+  .profile-info .name{font-size:16px}
   .nav-item{padding:8px;font-size:14px}
   .right-column{flex:0 0 clamp(160px, 30vw, 320px)}
   .search-area input{width:160px}
@@ -428,7 +453,14 @@ body{
 /* small touch target improvements */
 button, .nav-item, .member { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 
-/* End of file */
+
+.sidebar .profile-info .name {
+    margin-left: 25px;   
+    position: relative;
+    top: 30px;  
+    font-size: 18px;
+
+}
 
 /* ============================
    Custom Scrollbars (Dark, Dim)
@@ -564,3 +596,5 @@ button, .nav-item, .member { touch-action: manipulation; -webkit-tap-highlight-c
     max-height: calc(1.18em * 2); /* 2 lines on very small screens */
   }
 }
+
+
