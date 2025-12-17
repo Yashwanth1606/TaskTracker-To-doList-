@@ -630,4 +630,81 @@ select.at-input option:checked {
   }
 }
 
+/* =========================
+   Logout Button Animations
+   ========================= */
+
+.logout {
+  position: relative;
+  margin-top: auto;
+  padding: 14px;
+  border-radius: 12px;
+  text-align: center;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.02),
+    rgba(255, 255, 255, 0.01)
+  );
+
+  border: 1px solid rgba(255, 255, 255, 0.04);
+
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    color 0.18s ease,
+    background 0.18s ease;
+}
+
+/* 🖱️ Hover */
+.logout:hover {
+  transform: translateY(-3px);
+  color: #ffffff;
+
+  background: linear-gradient(
+    180deg,
+    rgba(124, 58, 237, 0.18),
+    rgba(124, 58, 237, 0.12)
+  );
+
+  box-shadow:
+    0 12px 30px rgba(124, 58, 237, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* 🖱️ Click (press) */
+.logout:active {
+  transform: translateY(0) scale(0.96);
+
+  box-shadow:
+    0 6px 16px rgba(124, 58, 237, 0.25),
+    inset 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* ✨ Optional subtle pulse when idle */
+@keyframes logoutPulse {
+  0% {
+    box-shadow: 0 0 0 rgba(124, 58, 237, 0);
+  }
+  50% {
+    box-shadow: 0 0 14px rgba(124, 58, 237, 0.18);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(124, 58, 237, 0);
+  }
+}
+
+/* Enable pulse only on hover-capable devices */
+@media (hover: hover) {
+  .logout {
+    animation: logoutPulse 3.5s ease-in-out infinite;
+  }
+
+  .logout:hover {
+    animation: none;
+  }
+}
 
