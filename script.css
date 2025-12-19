@@ -45,6 +45,38 @@ body{
   /* page-level overflow hidden — internal regions will scroll */
   overflow: hidden;
 }
+/* =========================
+   Disable text selection (UI)
+   ========================= */
+
+body,
+.app,
+.sidebar,
+.main,
+.card,
+.task,
+.completed-item,
+.nav,
+.nav-item,
+h1, h2, h3, h4, h5, h6,
+p,
+span,
+div {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+/* Allow text selection where needed */
+input,
+textarea,
+select {
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+}
+
 
 /* App: full viewport height, fixed width columns */
 .app{
