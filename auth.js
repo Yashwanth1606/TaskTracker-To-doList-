@@ -1,3 +1,10 @@
+
+const API_BASE =
+  window.location.hostname === "localhost"
+    ? "http://localhost:3000"
+    : "RENDER_URL_WILL_GO_HERE";
+
+
 /* =========================
    LOGIN
 ========================= */
@@ -16,7 +23,7 @@ if (loginForm) {
     }
 
     try {
-      const res = await fetch('http://localhost:3000/login', {
+      const res = await fetch('${API_BASE}/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -85,7 +92,7 @@ if (registerForm) {
     }
 
     try {
-      const res = await fetch('http://localhost:3000/register', {
+      const res = await fetch('${API_BASE}/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

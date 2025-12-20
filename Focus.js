@@ -1,3 +1,10 @@
+const API_BASE =
+  window.location.hostname === "localhost"
+    ? "http://localhost:3000"
+    : "RENDER_URL_WILL_GO_HERE";
+
+
+
 const userId = localStorage.getItem('userId');
 const taskListEl = document.getElementById('taskList');
 const searchInput = document.getElementById('taskSearch');
@@ -11,7 +18,7 @@ let selectedTask = null;
 async function loadTasks() {
   if (!userId) return;
 
-  const res = await fetch(`http://localhost:3000/tasks?userId=${userId}`);
+  const res = await fetch(`${API_BASE}/tasks?userId=${userId}`);
   const data = await res.json();
 
   allTasks = (data.tasks || []).filter(

@@ -1,5 +1,9 @@
 // script.js - renders tasks and status donuts and includes examples for Google Sheets fetching
 
+const API_BASE =
+  window.location.hostname === "localhost"
+    ? "http://localhost:3000"
+    : "RENDER_URL_WILL_GO_HERE";
 
 // Helper function to get today's date as YYYY-MM-DD string
 function getTodayDateString() {
@@ -17,7 +21,7 @@ if (logoutBtn) {
     const userId = localStorage.getItem('userId');
 
     try {
-      await fetch('http://localhost:3000/logout', {
+      await fetch('${API_BASE}/logout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId })
@@ -114,7 +118,7 @@ const sampleTasks = [
 async function loadTasksFromServer() {
   try {
     const userId = localStorage.getItem('userId');
-    const res = await fetch(`http://localhost:3000/tasks?userId=${userId}`);
+    const res = await fetch(`${API_BASE}/tasks?userId=${userId}`);
 
     if (!res.ok) throw new Error('Network response was not ok: ' + res.status);
     const data = await res.json();
@@ -646,7 +650,7 @@ function enableTaskDragAndDrop() {
 
 // Persist status change to backend. Adjust path if your server uses different route.
 async function updateTaskStatusOnServer(id, newStatus) {
-  const url = `http://localhost:3000/tasks/${id}`; // expects PATCH /tasks/:id on your server
+  const url = `${API_BASE}/tasks/${id}`; // expects PATCH /tasks/:id on your server
   const res = await fetch(url, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
@@ -738,7 +742,7 @@ async function updateTaskStatusOnServer(id, newStatus) {
       }
 
       try {
-        const res = await fetch("http://localhost:3000/tasks", {
+        const res = await fetch("${API_BASE}/tasks", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
 
