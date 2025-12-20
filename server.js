@@ -20,13 +20,19 @@ const KEYFILE =
    GOOGLE SHEETS CLIENT
 ========================= */
 async function getSheetsClient() {
+  const credentials = JSON.parse(
+    process.env.GOOGLE_APPLICATION_CREDENTIALS
+  );
+
   const auth = new google.auth.GoogleAuth({
-    keyFile: KEYFILE,
+    credentials,
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
+
   const authClient = await auth.getClient();
   return google.sheets({ version: 'v4', auth: authClient });
 }
+
 
 function generateUserId(firstName, lastName, dob) {
   const firstLetter = firstName.trim()[0].toUpperCase();
