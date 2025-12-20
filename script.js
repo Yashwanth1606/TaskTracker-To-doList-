@@ -3,7 +3,8 @@
 const API_BASE =
   window.location.hostname === "localhost"
     ? "http://localhost:3000"
-    : "RENDER_URL_WILL_GO_HERE";
+    : "https://taskmanager-05hb.onrender.com";
+
 
 // Helper function to get today's date as YYYY-MM-DD string
 function getTodayDateString() {
