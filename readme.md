@@ -252,5 +252,9 @@ Modern browsers with:
 - Completed task shows only most recent for focused, minimal view
 - Section headings center-aligned for visual balance
 
+## Notes
+
+-- work on creating the comontes on all the things that i havemade the changes till
+-- it is not updates it is done till only 3 day of development 
 
 
